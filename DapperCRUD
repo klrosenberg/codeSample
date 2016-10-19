@@ -1,0 +1,93 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using Dapper;
+
+namespace Mindset.Models
+{
+    public class Client
+    {
+        public int ClientID { get; set; }
+        public string Name { get; set; }
+        public int CompanySizeID { get; set; }
+        public int IndustryID { get; set; }
+        public int TypeID { get; set; }
+        public DateTime Created { get; set; }
+        public int CreatedBy { get; set; }
+        public DateTime? Modified { get; set; }
+        public int? ModifiedBy { get; set; }
+        public DateTime? Deleted { get; set; }
+        public int? DeletedBy { get; set; }
+        
+        /// <summary>
+        /// Validate the company
+        /// </summary>
+        /// <returns>A list of validation errors</returns>
+        public List<string> IsValid()
+        {
+            var errors = new List<string>();
+            if (ClientID == 0)
+            {
+                if (string.IsNullOrWhiteSpace(Name))
+                    errors.Add("Please enter a company name.");
+            }
+            return errors;
+        }
+        
+        #region CRUD
+        ///<summary>
+        ///Save the Client inserts if ClientID is 0
+        /// </summary>
+        public void Save()
+        {
+            using (var connection = ConnectionFactory.GetOpenConnection())
+            {
+                if (ClientID == 0)
+                {
+                    Created = DateTime.Now;
+                    CreatedBy = Convert.ToInt32(HttpContext.Current.User.Identity.Name);
+                    ClientID = connection.Query<int>("INSERT INTO Client (Name, CompanySizeID, IndustryID, TypeID, Created, CreatedBy) VALUES (@Name, @CompanySizeID, @IndustryID, @TypeID, @Created, @CreatedBy); SELECT CAST(SCOPE_IDENTITY() as int)", new
+                    {
+                        Name,
+                        CompanySizeID,
+                        IndustryID,
+                        TypeID,
+                        Created,
+                        CreatedBy
+                    }).FirstOrDefault();
+                    return;
+                }
+                Modified = DateTime.Now;
+                ModifiedBy = Convert.ToInt32(HttpContext.Current.User.Identity.Name);
+                connection.Execute("UPDATE Client SET Name = @Name, CompanySizeID = @CompanySizeID, IndustryID = @IndustryID, TypeID = @TypeID WHERE ClientID = @ClientID", new
+                {
+                    ClientID,
+                    CompanySizeID,
+                    IndustryID,
+                    TypeID,
+                    Modified,
+                    ModifiedBy
+                });
+            }
+        }
+        
+        ///<summary>
+        ///Soft delete the client
+        /// </summary>
+        public static void Delete(int clientID)
+        {
+            var deleted = DateTime.Now;
+            var deletedBy = Convert.ToInt32(HttpContext.Current.User.Identity.Name);
+            using (var connection = ConnectionFactory.GetOpenConnection())
+                connection.Execute("Update Client SET Deleted = @Deleted, DeletedBy = @DeletedBy WHERE ClientID - @ClientID", new
+                {
+                    ClientID = clientID,
+                    Deleted = deleted,
+                    DeletedBy = deletedBy
+                });
+        }
+        #endregion
+    }
+}
+        
