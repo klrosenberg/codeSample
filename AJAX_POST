@@ -1,0 +1,15 @@
+ $(document).on("click", ".saveChangesButton", function () {
+            $.ajax({
+                url: "/Company/EditCompanyModal",
+                data: $("#AddCompanyForm").serialize(),
+                method: "POST",
+                success: function (resp) {
+                    if (resp.error === "") {
+                        location.href = "/Company/AddCompany/";
+                    } else {
+                        $("#EditCompanyError").html(resp.error);
+                        $("#EditCompanyError").show();
+                    }
+                }
+            });
+        });
