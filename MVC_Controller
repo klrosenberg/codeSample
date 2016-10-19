@@ -1,0 +1,84 @@
+using System.Linq;
+using System.Web.Mvc;
+using Kiewit.Models;
+
+namespace Kiewit.Controllers
+{
+    [Authorize]
+    public class CompanyController : _BaseController
+    {
+        [HttpGet]
+        public ActionResult AddCompany()
+        {
+            return View("EditCompany", new Company());
+        }
+
+        [HttpPost]
+        public ActionResult EditCompany(Company model)
+        {
+            if (!ModelState.IsValid)
+                return View(model);
+            model.Save();
+            SetAlertMessage("Company successfully saved.");
+            return Redirect("AddCompany");
+        }
+
+
+        [HttpPost]
+        public ActionResult EditCompanyModal(Company model)
+        {
+            if (!ModelState.IsValid)
+                return View();
+            model.Save();
+            model = Company.GetOne(model.CompanyID);
+            SetAlertMessage("Company successfully saved.");
+            return Json(new { error = string.Join("<br/>", ViewData.ModelState.Values.SelectMany(m => m.Errors.Select(z => z.ErrorMessage))) }, JsonRequestBehavior.AllowGet);
+        }
+
+        [HttpGet]
+        public ActionResult Delete(int id)
+        {
+            Company.Delete(id);
+            SetAlertMessage("Company successfuly deleted.");
+            return Redirect("/Company/AddCompany");
+        }
+
+        [HttpGet]
+        public ActionResult EditCompanyModal(int id)
+        {
+            return PartialView("_CompanyFormContent", Company.GetOne(id));
+        }
+
+        [HttpGet]
+        public JsonResult GetCompaniesForAutoSearchByName(string id)
+        {
+            var company = Company.GetCompanies();
+            if (id != null)
+            {
+                var ret = company.Where(t => t.IsInactive != true).Where(t => t.Name.ToLower().StartsWith(id.ToLower())).Select(t => t.Name + " (" + t.Number + ")").ToList();
+                return Json(ret, JsonRequestBehavior.AllowGet);
+            }
+            else
+            {
+                var ret = company.Select(t => t.Name + " (" + t.Number + ")").ToList();
+                return Json(ret, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        [HttpGet]
+        public JsonResult GetCompaniesForAutoSearchByNumber(string id)
+        {
+            var company = Company.GetCompanies();
+            if (id != null)
+            {
+                var ret = company.Where(t => t.IsInactive != true).Where(t => t.Number.ToString().StartsWith(id)).Select(t => t.Name + " (" + t.Number + ")").ToList();
+                return Json(ret, JsonRequestBehavior.AllowGet);
+            }
+            else
+            {
+                var ret = company.Select(t => t.Name + " (" + t.Number + ")").ToList();
+                return Json(ret, JsonRequestBehavior.AllowGet);
+            }
+        }
+}
+}
