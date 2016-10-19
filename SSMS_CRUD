@@ -1,0 +1,110 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Data.Entity;
+using System.ComponentModel.DataAnnotations;
+using System;
+
+namespace Kiewit.Models
+{
+    [MetadataType(typeof(CompanyValidate))]
+    public partial class Company
+    {
+        public List<Company> CompanyList
+        {
+            get
+            {
+                var ret = Company.GetCompanies();
+                return ret;
+            }
+        }
+
+        public static List<Company> GetCompaniesForDropdown()
+        {
+            using (var ctx = new KiewitEntities())
+            {
+                return ctx.Companies.OrderBy(x => x.Number).ThenBy(x => x.Name).ToList();
+            }
+        }
+
+        public static Company GetOne(int id)
+        {
+            using (var ctx = new KiewitEntities())
+            {
+                return ctx.Companies.FirstOrDefault(t => t.CompanyID == id);
+            }
+        }
+
+        public static long GetCompanyID(string companyName)
+        {
+            using (var ctx = new KiewitEntities())
+            {
+                return ctx.Companies.FirstOrDefault(t => t.Name == companyName).CompanyID;
+            }
+        }
+
+        public void Save()
+        {
+            //connect to database
+            using (var ctx = new KiewitEntities())
+            {
+                //ADD
+                if (CompanyID == 0)
+                {
+                    //ADD
+                    ctx.Companies.Add(this);
+                    ctx.SaveChanges();
+                    return;
+                }
+                //UPDATE
+                var company = ctx.Companies.FirstOrDefault(t => t.CompanyID == CompanyID);
+                company.Name = Name;
+                company.Number = Number;
+                company.IsInactive = IsInactive;
+                ctx.SaveChanges();
+            }
+        }
+
+        public static void Delete(int companyId)
+        {
+            using (var ctx = new KiewitEntities())
+            {
+                var fileCompany = ctx.FileInfoCompanies.Where(t => t.CompanyID == companyId);
+                foreach (var relation in fileCompany)
+                    ctx.Entry(relation).State = EntityState.Deleted;
+                var company = new Company { CompanyID = companyId };
+                ctx.Companies.Attach(company);
+                ctx.Entry(company).State = EntityState.Deleted;
+                ctx.SaveChanges();
+            }
+        }
+
+        public static List<Company> GetCompanies()
+        {
+            using (var ctx = new KiewitEntities())
+            {
+                return ctx.Companies.OrderBy(x => x.Number).ThenBy(x => x.Name).ToList();
+            }
+        }
+    }
+
+    public class CompanyValidate
+    {
+        [ValidateCompanyName]
+        public string Name { get; set; }
+    }
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false)]
+    public class ValidateCompanyName : ValidationAttribute
+    {
+        protected override ValidationResult IsValid(object value, ValidationContext validationContext)
+        {
+            if (string.IsNullOrWhiteSpace((string)value)) return new ValidationResult("Please enter a company name.");
+            using (var ctx = new KiewitEntities())
+            {
+                var id = (int)validationContext.ObjectType.GetProperty("CompanyID").GetValue(validationContext.ObjectInstance, null);
+                var exists = ctx.Companies.Any(n => n.Name == (string)value && n.CompanyID != id);
+
+                return exists ? new ValidationResult("The company name is already in use.") : ValidationResult.Success;
+            }
+        }
+    }
+}
